@@ -1,0 +1,145 @@
+---
+title: "QPL Program Attendance"
+author: "Matthew Magiera"
+date: "2/28/2022"
+output: pdf_document
+---
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+Library and Data Loading
+```{r}
+setwd("~/QPL Projects/Project 2- LAMPS data")
+library(tidyverse)
+library(ggthemes)
+library(readxl)
+library(rio)
+library(zoo)
+library(writexl)
+franny_list <- read_excel("psd_programs_franny.xlsx")
+```
+
+Merging spreadsheets into one
+
+```{r}
+
+df <- import_list("lamps_data_2020_present.xlsx", rbind = TRUE)
+write_xlsx(df, "consolidated.xlsx")
+```
+
+Merging the two data sets using a left join.
+
+```{r}
+df <- left_join(franny_list, df)
+```
+
+Finding NA in the data frame.
+```{r}
+
+which(is.na(df), arr.ind = TRUE)
+```
+
+Removing row 3932 and making the Month column a date.
+```{r}
+df <- df %>%
+  filter(!row_number() %in% 3932)
+
+df$Month <- as.yearmon(df$Month, '%m/%Y')
+df$Month <- as.Date(df$Month, format = "%m/%Y")
+```
+
+The # of programs and attendance of programs created by her staff
+```{r}
+
+bar_chart <- ggplot(data = df, aes(x = as.factor(`QPL Department`)))+
+  geom_bar()+
+  xlab("Programs")+
+  ylab("Number of Programs")+
+  ggtitle('Number of Programs Hosted by QPL Department') +
+  theme_clean() 
+  
+bar_chart + coord_flip()
+
+```
+
+```{r}
+bar_chart <- ggplot(data = df, aes(x = Attendance ,y = `QPL Department`))+
+  geom_bar(stat = "identity") +
+  ggtitle("Attendence For Each QPL Department")+
+  theme_clean()
+bar_chart + coord_flip()
+```
+
+
+
+Which programs are missing attendance (or have a 0 in the "Attendance" column)?
+
+Filter data frame where attendance is Zero
+```{r}
+df_zero <- df %>%
+  group_by(`QPL Department`) %>%
+  summarise(Attendance = n(), .groups = 'drop')
+
+
+```
+
+```{r}
+bar_chart <- ggplot(data = df_zero, aes(x = as.factor(`Staff Name`)))+
+  geom_bar() +
+  xlab("Employee Names") +
+  ylab("Number of Programs") +
+  ggtitle("Employee Hosted When The Attendance Is Zero") +
+  theme_clean()
+bar_chart + coord_flip()
+```
+```{r}
+bar_chart <- ggplot(data = df_zero, aes(x = as.factor(`QPL Department`)))+
+  geom_bar() +
+  xlab("Program Names") +
+  ylab("Number of Programs")+
+  ggtitle("Programs Where The Attendance Is Zero")+
+  theme_clean()
+bar_chart + coord_flip()
+```
+Which staff hosted the most # of programs? Which staff had the most attended programs?
+
+```{r}
+bar_chart <- ggplot(data = df, aes(x = as.factor(`Staff Name`)))+
+  geom_bar() +
+  xlab("Employee Names") +
+  ylab("Number of Programs") +
+  ggtitle("Employee Hosted the Number of Programs ") +
+  theme_clean()
+bar_chart + coord_flip()
+```
+
+```{r}
+bar_chart <- ggplot(data = df, aes(x = as.factor(`Staff Name`), y = Attendance))+
+  geom_bar(stat = "identity")+
+  xlab("Employee Names") +
+  ylab("Attendance") +
+  ggtitle("Employee By Attendance ") +
+  theme_clean()
+bar_chart + coord_flip()
+```
+
+Top 10 Most Attended Programs
+```{r}
+df <- df[with(df, order(-Attendance)),]
+df <- df[1:10,]
+print(df)
+```
+```{r}
+non_zero <- df %>%
+  filter(Attendance != 0)
+```
+
+```{r}
+library(lubridate)
+non_zero %>%
+  mutate(Month = ym(Month))
+  ggplot(aes(x = Month, y = Attendance)) +
+  geom_line()+
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month")
+```
+
